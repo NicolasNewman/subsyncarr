@@ -5,3 +5,4 @@
 .eslintcache
 .env
 /test-srts
+/scan_dir

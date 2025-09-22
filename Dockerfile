@@ -47,6 +47,8 @@ RUN npm run build
 # Create startup script
 # Set default cron schedule (if not provided by environment variable)
 ENV CRON_SCHEDULE="0 0 * * *"
+# Set default to run on startup (if not provided by environment variable)
+ENV RUN_ON_STARTUP=true
 
 # Install pipx
 RUN python3 -m pip install --user pipx \
@@ -58,7 +60,8 @@ ENV PATH="/home/node/.local/bin:$PATH"
 # Install ffsubsync and autosubsync using pipx
 RUN pipx install ffsubsync \
     && pipx install autosubsync
-# RUN pipx inject ffsubsync silero-vad
+
+RUN pipx inject ffsubsync silero-vad
 
 # Install PM2 globally
 RUN npm install -g pm2
@@ -73,8 +76,11 @@ EOF\n\
 # Start the Express API server with PM2\n\
 pm2 start dist/api/api.js --name "subsyncarr-api" --log /app/logs/api.log\n\
 \n\
-# Run the initial instance of the app\n\
-node dist/index.js\n\
+# Conditionally run the initial instance of the app\n\
+if [ "${RUN_ON_STARTUP:-true}" = "true" ]; then\n\
+    node dist/index.js\n\
+fi\n\
+\n\
 mkdir -p /app/logs/\n\
 touch /app/logs/app.log\n\
 tail -f /app/logs/app.log' > /app/startup.sh
