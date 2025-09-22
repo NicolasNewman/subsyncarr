@@ -11,7 +11,7 @@ import swaggerSpec from './swagger';
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const port = process.env.PORT || 3000;
 const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
