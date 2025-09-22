@@ -1,11 +1,19 @@
 import { basename, dirname, join } from 'path';
 import { execPromise, getAudioStreamIndex, ProcessingResult } from './helpers';
 import { existsSync } from 'fs';
+import { SubsyncarrEnv } from './types/env';
 
-export async function generateAlassSubtitles(srtPath: string, videoPath: string): Promise<ProcessingResult> {
+export async function generateAlassSubtitles(
+  srtPath: string,
+  videoPath: string,
+  env?: SubsyncarrEnv,
+): Promise<ProcessingResult> {
   const directory = dirname(srtPath);
   const srtBaseName = basename(srtPath, '.srt');
   const outputPath = join(directory, `${srtBaseName}.alass.srt`);
+
+  const AUDIO_TRACK_LANGUAGE = env?.AUDIO_TRACK_LANGUAGE || process.env.AUDIO_TRACK_LANGUAGE;
+  const ALASS_ARGS = env?.ALASS_ARGS || process.env.ALASS_ARGS;
 
   const exists = existsSync(outputPath);
   if (exists) {
@@ -15,19 +23,21 @@ export async function generateAlassSubtitles(srtPath: string, videoPath: string)
     };
   }
 
-  let index = -1;
-  if (process.env.AUDIO_TRACK_LANGUAGE) {
-    index = (await getAudioStreamIndex(videoPath, process.env.AUDIO_TRACK_LANGUAGE)).index;
-  }
-
   try {
+    let index = -1;
+    if (AUDIO_TRACK_LANGUAGE) {
+      index = (await getAudioStreamIndex(videoPath, AUDIO_TRACK_LANGUAGE)).index;
+    }
+
     let command = `alass "${videoPath}" "${srtPath}" "${outputPath}"`;
     if (index !== -1) {
       command += ` --index ${index}`;
     }
-    if (process.env.ALASS_ARGS) {
-      command += ` ${process.env.ALASS_ARGS}`;
+
+    if (ALASS_ARGS) {
+      command += ` ${ALASS_ARGS}`;
     }
+
     console.log(`${new Date().toLocaleString()} Processing: ${command}`);
     await execPromise(command);
     return {

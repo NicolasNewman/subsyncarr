@@ -1,11 +1,18 @@
 import { basename, dirname, join } from 'path';
 import { execPromise, ProcessingResult } from './helpers';
 import { existsSync } from 'fs';
+import { SubsyncarrEnv } from './types/env';
 
-export async function generateAutosubsyncSubtitles(srtPath: string, videoPath: string): Promise<ProcessingResult> {
+export async function generateAutosubsyncSubtitles(
+  srtPath: string,
+  videoPath: string,
+  env?: SubsyncarrEnv,
+): Promise<ProcessingResult> {
   const directory = dirname(srtPath);
   const srtBaseName = basename(srtPath, '.srt');
   const outputPath = join(directory, `${srtBaseName}.autosubsync.srt`);
+
+  const AUTOSUBSYNC_ARGS = env?.AUTOSUBSYNC_ARGS || process.env.AUTOSUBSYNC_ARGS;
 
   const exists = existsSync(outputPath);
   if (exists) {
@@ -17,8 +24,8 @@ export async function generateAutosubsyncSubtitles(srtPath: string, videoPath: s
 
   try {
     let command = `autosubsync "${videoPath}" "${srtPath}" "${outputPath}"`;
-    if (process.env.AUTOSUBSYNC_ARGS) {
-      command += ` ${process.env.AUTOSUBSYNC_ARGS}`;
+    if (AUTOSUBSYNC_ARGS) {
+      command += ` ${AUTOSUBSYNC_ARGS}`;
     }
     console.log(`${new Date().toLocaleString()} Processing: ${command}`);
     await execPromise(command);

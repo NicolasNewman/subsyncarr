@@ -8,8 +8,8 @@ function validatePath(path: string): boolean {
   return path.startsWith('/') && !path.includes('..');
 }
 
-export function getScanConfig(): ScanConfig {
-  const scanPaths = process.env.SCAN_PATHS?.split(',').filter(Boolean) || ['/scan_dir'];
+export function getScanConfig(scanPath?: string[]): ScanConfig {
+  const scanPaths = scanPath || process.env.SCAN_PATHS?.split(',').filter(Boolean) || ['/scan_dir'];
   const excludePaths = process.env.EXCLUDE_PATHS?.split(',').filter(Boolean) || [];
 
   // Validate paths

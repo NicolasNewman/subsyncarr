@@ -1,11 +1,19 @@
 import { basename, dirname, join } from 'path';
 import { execPromise, getAudioStreamIndex, ProcessingResult } from './helpers';
 import { existsSync } from 'fs';
+import { SubsyncarrEnv } from './types/env';
 
-export async function generateFfsubsyncSubtitles(srtPath: string, videoPath: string): Promise<ProcessingResult> {
+export async function generateFfsubsyncSubtitles(
+  srtPath: string,
+  videoPath: string,
+  env?: SubsyncarrEnv,
+): Promise<ProcessingResult> {
   const directory = dirname(srtPath);
   const srtBaseName = basename(srtPath, '.srt');
   const outputPath = join(directory, `${srtBaseName}.ffsubsync.srt`);
+
+  const AUDIO_TRACK_LANGUAGE = env?.AUDIO_TRACK_LANGUAGE || process.env.AUDIO_TRACK_LANGUAGE;
+  const FFSUBSYNC_ARGS = env?.FFSUBSYNC_ARGS || process.env.FFSUBSYNC_ARGS;
 
   // Check if synced subtitle already exists
   const exists = existsSync(outputPath);
@@ -18,8 +26,8 @@ export async function generateFfsubsyncSubtitles(srtPath: string, videoPath: str
 
   try {
     let index = -1;
-    if (process.env.AUDIO_TRACK_LANGUAGE) {
-      index = (await getAudioStreamIndex(videoPath, process.env.AUDIO_TRACK_LANGUAGE)).relativeIndex;
+    if (AUDIO_TRACK_LANGUAGE) {
+      index = (await getAudioStreamIndex(videoPath, AUDIO_TRACK_LANGUAGE)).relativeIndex;
     }
 
     let command = `ffsubsync "${videoPath}" -i "${srtPath}" -o "${outputPath}"`;
@@ -27,9 +35,10 @@ export async function generateFfsubsyncSubtitles(srtPath: string, videoPath: str
       command += ` --reference-stream a:${index - 1}`;
     }
 
-    if (process.env.FFSUBSYNC_ARGS) {
-      command += ` ${process.env.FFSUBSYNC_ARGS}`;
+    if (FFSUBSYNC_ARGS) {
+      command += ` ${FFSUBSYNC_ARGS}`;
     }
+
     console.log(`${new Date().toLocaleString()} Processing: ${command}`);
     await execPromise(command);
     return {
