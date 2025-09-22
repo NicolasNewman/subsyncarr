@@ -137,9 +137,6 @@ app.get('/paths', async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                 lockDuration:
- *                   type: number
- *                   format: int64
  *       500:
  *         description: Internal server error
  *         content:
@@ -152,10 +149,8 @@ app.get('/paths', async (req, res) => {
  */
 app.post('/sync', async (req, res) => {
   if (!syncLock.tryLock()) {
-    const lockDuration = syncLock.getLockDuration();
     return res.status(409).json({
       error: 'Sync operation already in progress',
-      lockDuration: lockDuration,
     });
   }
 
