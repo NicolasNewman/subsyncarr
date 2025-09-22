@@ -60,6 +60,8 @@ RUN pipx install ffsubsync \
     && pipx install autosubsync
 # RUN pipx inject ffsubsync silero-vad
 
+# Install PM2 globally
+RUN npm install -g pm2
 
 # Create startup script with proper permissions
 RUN echo '#!/bin/bash\n\
@@ -67,6 +69,9 @@ RUN echo '#!/bin/bash\n\
 crontab - <<EOF\n\
 ${CRON_SCHEDULE} cd /app && /usr/local/bin/node /app/dist/index.js >> /var/log/subsyncarr/cron.log 2>&1\n\
 EOF\n\
+\n\
+# Start the Express API server with PM2\n\
+pm2 start dist/api/api.js --name "subsyncarr-api" --log /app/logs/api.log\n\
 \n\
 # Run the initial instance of the app\n\
 node dist/index.js\n\
