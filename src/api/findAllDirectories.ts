@@ -28,8 +28,7 @@ export async function findAllDirectories(
         extname(entry.name).toLowerCase() === '.srt' &&
         !entry.name.includes('.ffsubsync.') &&
         !entry.name.includes('.alass.') &&
-        !entry.name.includes('.autosubsync.') &&
-        !entry.name.includes('.alass-sub.')
+        !entry.name.includes('.autosubsync.')
       ) {
         directoryMap[directory] ??= [];
         directoryMap[directory].push(fullPath);

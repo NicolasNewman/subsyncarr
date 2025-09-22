@@ -19,6 +19,17 @@ const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
   ? parseInt(process.env.MAX_CONCURRENT_SYNC_TASKS)
   : 1;
 
+const apiKey = process.env.API_KEY;
+app.use((req, res, next) => {
+  if (apiKey) {
+    const requestApiKey = req.headers['Authorization'];
+    if (requestApiKey !== apiKey) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+  next();
+});
+
 // Note: this isn't perfect but should handle most cases as long as only one person is using the API
 const syncLock = new SyncLock();
 
