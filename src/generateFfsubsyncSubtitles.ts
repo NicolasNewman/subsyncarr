@@ -1,5 +1,5 @@
 import { basename, dirname, join } from 'path';
-import { execPromise, ProcessingResult } from './helpers';
+import { execPromise, getAudioStreamIndex, ProcessingResult } from './helpers';
 import { existsSync } from 'fs';
 
 export async function generateFfsubsyncSubtitles(srtPath: string, videoPath: string): Promise<ProcessingResult> {
@@ -17,7 +17,19 @@ export async function generateFfsubsyncSubtitles(srtPath: string, videoPath: str
   }
 
   try {
-    const command = `ffsubsync "${videoPath}" -i "${srtPath}" -o "${outputPath}"`;
+    let index = -1;
+    if (process.env.AUDIO_TRACK_LANGUAGE) {
+      index = (await getAudioStreamIndex(videoPath, process.env.AUDIO_TRACK_LANGUAGE)).relativeIndex;
+    }
+
+    let command = `ffsubsync "${videoPath}" -i "${srtPath}" -o "${outputPath}"`;
+    if (index !== -1) {
+      command += ` --reference-stream a:${index - 1}`;
+    }
+
+    if (process.env.FFSUBSYNC_ARGS) {
+      command += ` ${process.env.FFSUBSYNC_ARGS}`;
+    }
     console.log(`${new Date().toLocaleString()} Processing: ${command}`);
     await execPromise(command);
     return {

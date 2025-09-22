@@ -7,6 +7,8 @@ ENV PGID=1000
 
 RUN mkdir -p /app
 RUN chown node:node /app
+RUN mkdir -p /tmp
+RUN chown node:node /tmp
 
 # Modify existing node user instead of creating new one
 RUN groupmod -g ${PGID} node && \
@@ -56,6 +58,7 @@ ENV PATH="/home/node/.local/bin:$PATH"
 # Install ffsubsync and autosubsync using pipx
 RUN pipx install ffsubsync \
     && pipx install autosubsync
+# RUN pipx inject ffsubsync silero-vad
 
 
 # Create startup script with proper permissions
