@@ -1,12 +1,37 @@
-import { promisify } from 'util';
-import { exec } from 'child_process';
+// import { promisify } from 'util';
+import { exec, ExecException } from 'child_process';
+
+export type Engine = 'ffsubsync' | 'autosubsync' | 'alass';
 
 export interface ProcessingResult {
   success: boolean;
   message: string;
+  cmd?: string | undefined;
+  killed?: boolean | undefined;
+  code?: number | undefined;
+  signal?: NodeJS.Signals | undefined;
+  stdout?: string;
+  stderr?: string;
 }
 
-export const execPromise = promisify(exec);
+export const isExecException = (error: unknown): error is ExecException => {
+  const tmp = error as ExecException;
+  return tmp instanceof Error && tmp.stderr !== undefined;
+};
+
+export async function execPromise(command: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
+
+// export const execPromise = promisify(exec);
 
 export type FFProbeStream = {
   index: number;

@@ -1,5 +1,5 @@
 import { basename, dirname, join } from 'path';
-import { execPromise, getAudioStreamIndex, ProcessingResult } from './helpers';
+import { execPromise, getAudioStreamIndex, isExecException, ProcessingResult } from './helpers';
 import { existsSync } from 'fs';
 import { SubsyncarrEnv } from './types/env';
 
@@ -45,6 +45,12 @@ export async function generateAlassSubtitles(
       message: `Successfully processed: ${outputPath}`,
     };
   } catch (error) {
+    if (isExecException(error)) {
+      return {
+        success: false,
+        ...error,
+      };
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,

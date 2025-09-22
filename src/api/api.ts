@@ -37,7 +37,7 @@ const syncLock = new SyncLock();
  * @swagger
  * /paths:
  *   get:
- *     summary: Get all directories to scan for .srt files
+ *     summary: Get all directories available for scanning
  *     responses:
  *       200:
  *         description: A list of directories
@@ -130,6 +130,29 @@ app.get('/paths', async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
+ *                 success:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                 failure:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         engine:
+ *                           type: string
+ *                         message:
+ *                           type: string
+ *                         code:
+ *                           type: integer
+ *                         stderr:
+ *                           type: string
+ *                         stdout:
+ *                           type: string
  *       400:
  *         description: Bad request
  *         content:
@@ -182,7 +205,7 @@ app.post('/sync', async (req, res) => {
     }
 
     const engines = engineParam.map((e) => e.trim().toLowerCase());
-    const validEngines = ['ffsubsync', 'autosubsync', 'alass'];
+    const validEngines: string[] = ['ffsubsync', 'autosubsync', 'alass'];
     const invalidEngines = engines.filter((e) => !validEngines.includes(e));
 
     if (invalidEngines.length > 0) {
@@ -191,16 +214,66 @@ app.post('/sync', async (req, res) => {
     }
 
     const scanConfig = getScanConfig(pathParam);
-    console.log(scanConfig);
     const srtFiles = await findAllSrtFiles(scanConfig);
-    console.log(srtFiles);
 
+    const execResults: {
+      success: Record<string, string[]>;
+      failure: Record<
+        string,
+        {
+          engine: string;
+          message: string;
+          code: number | undefined;
+          stderr: string | undefined;
+          stdout: string | undefined;
+        }[]
+      >;
+    } = {
+      success: {},
+      failure: {},
+    };
     for (let i = 0; i < srtFiles.length; i += maxConcurrentSyncTasks) {
       const chunk = srtFiles.slice(i, i + maxConcurrentSyncTasks);
-      await Promise.all(chunk.map((srtFile) => processSrtFile(srtFile, env)));
+      const result = (await Promise.all(chunk.map((srtFile) => processSrtFile(srtFile, env)))).reduce(
+        (prev, { engines, file }) => {
+          prev.success[file] = Object.entries(engines)
+            .filter(([, result]) => result && result.success)
+            .map(([engine]) => engine);
+          prev.failure[file] = Object.entries(engines)
+            .filter(([, result]) => result && !result.success)
+            .map(([engine, error]) => ({
+              engine,
+              message: error?.message || 'Unknown Error',
+              code: error?.code,
+              stderr: error?.stderr,
+              stdout: error?.stdout,
+            }));
+          return prev;
+        },
+        { success: {}, failure: {} } as {
+          success: Record<string, string[]>;
+          failure: Record<
+            string,
+            {
+              engine: string;
+              message: string;
+              code: number | undefined;
+              stderr: string | undefined;
+              stdout: string | undefined;
+            }[]
+          >;
+        },
+      );
+
+      execResults.success = { ...execResults.success, ...result.success };
+      execResults.failure = { ...execResults.failure, ...result.failure };
     }
 
-    res.json({ message: `Sync triggered for path: ${pathParam} with engines: ${engines.join(', ')}` });
+    res.json({
+      message: `Sync triggered for path: ${pathParam} with engines: ${engines.join(', ')}`,
+      success: execResults.success,
+      failure: execResults.failure,
+    });
   } catch (error) {
     console.error('Error occurred while processing sync request:', error);
     res
