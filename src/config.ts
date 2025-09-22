@@ -5,11 +5,14 @@ export interface ScanConfig {
 
 function validatePath(path: string): boolean {
   // Add any path validation logic you need
-  return path.startsWith('/') && !path.includes('..');
+  return (process.argv?.[2] === 'development' || path.startsWith('/')) && !path.includes('..');
 }
 
 export function getScanConfig(scanPath?: string[]): ScanConfig {
-  const scanPaths = scanPath || process.env.SCAN_PATHS?.split(',').filter(Boolean) || ['/scan_dir'];
+  const scanPaths = scanPath ||
+    process.env.SCAN_PATHS?.split(',').filter(Boolean) || [
+      process.argv?.[2] === 'development' ? './scan_dir' : '/scan_dir',
+    ];
   const excludePaths = process.env.EXCLUDE_PATHS?.split(',').filter(Boolean) || [];
 
   // Validate paths

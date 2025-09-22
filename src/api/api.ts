@@ -1,4 +1,5 @@
 import express from 'express';
+import bodyParser from 'body-parser';
 import { getScanConfig } from '../config';
 import { findAllDirectories } from './findAllDirectories';
 import { findAllSrtFiles } from '../findAllSrtFiles';
@@ -8,7 +9,8 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 
 const app = express();
-app.use(express.json());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const port = process.env.PORT || 3000;
 const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
@@ -32,7 +34,7 @@ const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
  *   path: /some/path,/some/path2/sub.srt
  */
 
-app.get('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -63,59 +65,62 @@ app.get('/paths', async (req, res) => {
  * /sync:
  *   post:
  *     summary: Trigger subtitle synchronization for .srt files in the specified path
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - engine
+ *               - path
+ *             properties:
+ *               engine:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [ffsubsync, autosubsync, alass]
+ *                 example: [ffsubsync, alass]
+ *               path:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["/path/to/movie", "/path/to/subtitle.srt"]
  *     parameters:
- *       - in: query
- *         name: engine
- *         required: true
- *         description: The subtitle synchronization engine to use
+ *       - in: header
+ *         name: AUDIO_TRACK_LANGUAGE
+ *         required: false
+ *         description: The language of the audio track
  *         schema:
- *           type: array
- *           items:
- *             type: string
- *             enum: [ffsubsync, autosubsync, alass]
- *           example: [ffsubsync, alass]
- *       - in: query
- *         name: path
- *         required: true
- *         description: The path to the .srt files, separated by commas
+ *           type: string
+ *       - in: header
+ *         name: FFSUBSYNC_ARGS
+ *         required: false
+ *         description: Additional arguments for ffsubsync
  *         schema:
- *           type: array
- *           items:
- *             type: string
- *        - in: header
- *          name: AUDIO_TRACK_LANGUAGE
- *          required: false
- *          description: The language of the audio track
- *          schema:
- *            type: string
- *        - in: header
- *          name: FFSUBSYNC_ARGS
- *          required: false
- *          description: Additional arguments for ffsubsync
- *          schema:
- *            type: string
- *        - in: header
- *          name: AUTOSUBSYNC_ARGS
- *          required: false
- *          description: Additional arguments for autosubsync
- *          schema:
- *            type: string
- *        - in: header
- *          name: ALASS_ARGS
- *          required: false
- *          description: Additional arguments for alass
- *          schema:
- *            type: string
- *    responses:
- *      200:
- *        description: Sync started successfully
- *        content:
- *          application/json:
- *            schema:
- *              type: object
- *              properties:
- *                message:
- *                  type: string
+ *           type: string
+ *       - in: header
+ *         name: AUTOSUBSYNC_ARGS
+ *         required: false
+ *         description: Additional arguments for autosubsync
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: ALASS_ARGS
+ *         required: false
+ *         description: Additional arguments for alass
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sync started successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
  *       400:
  *         description: Bad request
  *         content:
