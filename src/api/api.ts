@@ -7,6 +7,7 @@ import { processSrtFile } from '../processSrtFile';
 import { SubsyncarrEnv } from '../types/env';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
+import SyncLock from './syncLock';
 
 const app = express();
 app.use(bodyParser.json());
@@ -17,6 +18,9 @@ const port = process.env.PORT || 3000;
 const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
   ? parseInt(process.env.MAX_CONCURRENT_SYNC_TASKS)
   : 1;
+
+// Note: this isn't perfect but should handle most cases as long as only one person is using the API
+const syncLock = new SyncLock();
 
 /**
  * @swagger
@@ -124,41 +128,102 @@ app.get('/paths', async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
+ *       409:
+ *         description: Conflict - Sync already in progress
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 lockDuration:
+ *                   type: number
+ *                   format: int64
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
  */
 app.post('/sync', async (req, res) => {
-  const engineParam = req.body.engine as string[];
-  const pathParam = req.body.path as string[];
-
-  const env: SubsyncarrEnv = {
-    AUDIO_TRACK_LANGUAGE: req.headers.AUDIO_TRACK_LANGUAGE as string | undefined,
-    FFSUBSYNC_ARGS: req.headers.FFSUBSYNC_ARGS as string | undefined,
-    AUTOSUBSYNC_ARGS: req.headers.AUTOSUBSYNC_ARGS as string | undefined,
-    ALASS_ARGS: req.headers.ALASS_ARGS as string | undefined,
-  };
-
-  if (!engineParam || !pathParam) {
-    return res.status(400).json({ error: 'Missing engine or path parameter' });
+  if (!syncLock.tryLock()) {
+    const lockDuration = syncLock.getLockDuration();
+    return res.status(409).json({
+      error: 'Sync operation already in progress',
+      lockDuration: lockDuration,
+    });
   }
 
-  const engines = engineParam.map((e) => e.trim().toLowerCase());
-  const validEngines = ['ffsubsync', 'autosubsync', 'alass'];
-  const invalidEngines = engines.filter((e) => !validEngines.includes(e));
+  try {
+    const engineParam = req.body.engine as string[];
+    const pathParam = req.body.path as string[];
 
-  if (invalidEngines.length > 0) {
-    return res.status(400).json({ error: `Invalid engines: ${invalidEngines.join(', ')}` });
+    const env: SubsyncarrEnv = {
+      AUDIO_TRACK_LANGUAGE: req.headers.AUDIO_TRACK_LANGUAGE as string | undefined,
+      FFSUBSYNC_ARGS: req.headers.FFSUBSYNC_ARGS as string | undefined,
+      AUTOSUBSYNC_ARGS: req.headers.AUTOSUBSYNC_ARGS as string | undefined,
+      ALASS_ARGS: req.headers.ALASS_ARGS as string | undefined,
+    };
+
+    if (!engineParam || !pathParam) {
+      syncLock.unlock();
+      return res.status(400).json({ error: 'Missing engine or path parameter' });
+    }
+
+    const engines = engineParam.map((e) => e.trim().toLowerCase());
+    const validEngines = ['ffsubsync', 'autosubsync', 'alass'];
+    const invalidEngines = engines.filter((e) => !validEngines.includes(e));
+
+    if (invalidEngines.length > 0) {
+      syncLock.unlock();
+      return res.status(400).json({ error: `Invalid engines: ${invalidEngines.join(', ')}` });
+    }
+
+    const scanConfig = getScanConfig(pathParam);
+    console.log(scanConfig);
+    const srtFiles = await findAllSrtFiles(scanConfig);
+    console.log(srtFiles);
+
+    for (let i = 0; i < srtFiles.length; i += maxConcurrentSyncTasks) {
+      const chunk = srtFiles.slice(i, i + maxConcurrentSyncTasks);
+      await Promise.all(chunk.map((srtFile) => processSrtFile(srtFile, env)));
+    }
+
+    res.json({ message: `Sync triggered for path: ${pathParam} with engines: ${engines.join(', ')}` });
+  } catch (error) {
+    console.error('Error occurred while processing sync request:', error);
+    res
+      .status(500)
+      .json({ error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` });
+  } finally {
+    syncLock.unlock();
   }
+});
 
-  const scanConfig = getScanConfig(pathParam);
-  console.log(scanConfig);
-  const srtFiles = await findAllSrtFiles(scanConfig);
-  console.log(srtFiles);
-
-  for (let i = 0; i < srtFiles.length; i += maxConcurrentSyncTasks) {
-    const chunk = srtFiles.slice(i, i + maxConcurrentSyncTasks);
-    await Promise.all(chunk.map((srtFile) => processSrtFile(srtFile, env)));
-  }
-
-  res.json({ message: `Sync triggered for path: ${pathParam} with engines: ${engines.join(', ')}` });
+/**
+ * @swagger
+ * /unlock:
+ *   get:
+ *     summary: Manually release the sync lock
+ *     responses:
+ *       200:
+ *         description: Sync lock released successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ */
+app.get('/unlock', (req, res) => {
+  syncLock.unlock();
+  res.json({ message: 'Sync lock released' });
 });
 
 app.listen(port, () => {
