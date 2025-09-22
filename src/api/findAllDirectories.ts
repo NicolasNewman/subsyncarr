@@ -2,8 +2,13 @@ import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
 import { ScanConfig } from '../config';
 
-export async function findAllDirectories(config: ScanConfig): Promise<string[]> {
+export async function findAllDirectories(
+  config: ScanConfig,
+): Promise<{ directories: string[]; files: string[]; directoryMap: Record<string, string[]> }> {
   const directories: Set<string> = new Set();
+  const files: string[] = [];
+
+  const directoryMap: Record<string, string[]> = {};
 
   async function scan(directory: string): Promise<void> {
     // Check if this directory should be excluded
@@ -26,7 +31,10 @@ export async function findAllDirectories(config: ScanConfig): Promise<string[]> 
         !entry.name.includes('.autosubsync.') &&
         !entry.name.includes('.alass-sub.')
       ) {
+        directoryMap[directory] ??= [];
+        directoryMap[directory].push(fullPath);
         directories.add(directory);
+        files.push(fullPath);
       }
     }
   }
@@ -36,5 +44,9 @@ export async function findAllDirectories(config: ScanConfig): Promise<string[]> 
     await scan(includePath);
   }
 
-  return Array.from(directories);
+  return {
+    directories: Array.from(directories),
+    files,
+    directoryMap,
+  };
 }

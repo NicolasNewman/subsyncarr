@@ -35,6 +35,16 @@ const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
  *                   type: array
  *                   items:
  *                     type: string
+ *                 files:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 directoryMap:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: string
  */
 app.get('/paths', async (req, res) => {
   const scanConfig = getScanConfig();
