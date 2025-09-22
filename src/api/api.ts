@@ -11,30 +11,12 @@ import swaggerSpec from './swagger';
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const port = process.env.PORT || 3000;
 const maxConcurrentSyncTasks = process.env.MAX_CONCURRENT_SYNC_TASKS
   ? parseInt(process.env.MAX_CONCURRENT_SYNC_TASKS)
   : 1;
-// const express = require('express');
-// const app = express();
-// const port = 3000;
-
-/**
- * /sync?engine=ffsubsync,autosubsync&path=/some/path
- * GET /paths
- * POST /sync?engine=ffsubsync,autosubsync&path=/some/path
- * Headers:
- *   AUDIO_TRACK_LANGUAGE: en
- *   FFSUBSYNC_ARGS: --arg1 --arg2
- *   AUTOSUBSYNC_ARGS: --arg1 --arg2
- *   ALASS_ARGS: --arg1 --arg2
- * Body:
- *   engine: ffsubsync,autosubsync
- *   path: /some/path,/some/path2/sub.srt
- */
-
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -93,22 +75,24 @@ app.get('/paths', async (req, res) => {
  *         description: The language of the audio track
  *         schema:
  *           type: string
+ *           example: jpn
  *       - in: header
  *         name: FFSUBSYNC_ARGS
  *         required: false
- *         description: Additional arguments for ffsubsync
+ *         description: Additional arguments for ffsubsync. See [docs](https://ffsubsync.readthedocs.io/en/latest/) for options.
  *         schema:
  *           type: string
+ *           example: --gss --vad subs_then_silero --max-offset-seconds 90
  *       - in: header
  *         name: AUTOSUBSYNC_ARGS
  *         required: false
- *         description: Additional arguments for autosubsync
+ *         description: Additional arguments for autosubsync. See [docs](https://github.com/oseiskar/autosubsync/blob/master/autosubsync/main.py) for options.
  *         schema:
  *           type: string
  *       - in: header
  *         name: ALASS_ARGS
  *         required: false
- *         description: Additional arguments for alass
+ *         description: Additional arguments for alass. See [docs](https://github.com/kaegi/alass/blob/master/alass-cli/src/main.rs) for options.
  *         schema:
  *           type: string
  *     responses:
