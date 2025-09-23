@@ -363,7 +363,7 @@ app.post('/ffprobe', async (req, res) => {
       await Promise.all(
         mediaFiles.map(async (mediaFile) =>
           execPromise(
-            `ffprobe -v error -show_entries format=duration:stream=index,codec_long_name,channels,duration,codec_type -of json "${mediaFile}"`,
+            `ffprobe -v error -show_entries stream=index,codec_name,codec_type:stream_tags=language -of json "${mediaFile}"`,
           ),
         ),
       )
