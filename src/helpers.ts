@@ -77,8 +77,8 @@ export const getAudioStreamIndex = async (
           relativeIndex: i - 1,
         }
       : {
-          index: -1,
-          relativeIndex: -1,
+          index: streams[0]?.index ?? -1,
+          relativeIndex: streams[0]?.index ? 0 : -1,
         };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
