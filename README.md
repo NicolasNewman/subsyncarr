@@ -27,7 +27,7 @@ mkdir subsyncarr && cd subsyncarr
 curl -O https://raw.githubusercontent.com/johnpc/subsyncarr/refs/heads/main/docker-compose.yaml
 ```
 
-#### 3. Edit the docker-compose.yml file with your timezone and paths
+#### 3. Edit the docker-compose.yml file with your timezone, paths, and API key if needed
 
 ```bash
 TZ=America/New_York  # Adjust to your timezone
@@ -47,6 +47,7 @@ The container is configured to:
 - Run synchronization at container startup
 - Run daily at midnight (configurable via cron)
 - Generate synchronized subtitle versions using different tools (currently ffsubsync and autosubsync)
+- Run an API server for manual control (can optionally be disabled)
 
 ### Directory Structure
 
