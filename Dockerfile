@@ -49,6 +49,7 @@ RUN npm run build
 ENV CRON_SCHEDULE="0 0 * * *"
 # Set default to run on startup (if not provided by environment variable)
 ENV RUN_ON_STARTUP=true
+ENV ENABLE_API=true
 
 # Install pipx
 RUN python3 -m pip install --user pipx \
@@ -77,7 +78,9 @@ ${CRON_SCHEDULE} cd /app && /usr/local/bin/node /app/dist/index.js >> /var/log/s
 EOF\n\
 \n\
 # Start the Express API server with PM2\n\
+if [ "${ENABLE_API:-true}" = "true" ]; then\n\
 pm2 start dist/api/api.js --name "subsyncarr-api" --log /app/logs/api.log\n\
+fi\n\
 \n\
 # Conditionally run the initial instance of the app\n\
 if [ "${RUN_ON_STARTUP:-true}" = "true" ]; then\n\

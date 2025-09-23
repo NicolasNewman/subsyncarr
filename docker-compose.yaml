@@ -19,7 +19,8 @@ services:
       - EXCLUDE_PATHS=/movies/temp,/tv/downloads # Exclude certain sub-directories from the scan
       - MAX_CONCURRENT_SYNC_TASKS=1 # Defaults to 1 if not set. Higher number will consume more CPU but sync your library faster
       - INCLUDE_ENGINES=ffsubsync,autosubsync # If not set, all engines are used by default
-      - RUN_ON_STARTUP=true # Set to false if you don't want to run a sync on container startup
+      - RUN_ON_STARTUP=true # Set to false if you don't want to run a sync on container startup. Default value is true`
+      - ENABLE_API=true # Set to false if you don't want to run the API server. Default value is true
       - API_KEY=${API_KEY} # Set your own API key here or in an env file, or don't require authentication at all by removing the variable
     ports:
       - 3000:3000
