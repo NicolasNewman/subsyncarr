@@ -17,7 +17,7 @@ export async function generateFfsubsyncSubtitles(
 
   // Check if synced subtitle already exists
   const exists = existsSync(outputPath);
-  if (exists) {
+  if (exists && (!env?.OVERWRITE || env.OVERWRITE.toLocaleLowerCase() !== 'true')) {
     return {
       success: true,
       message: `Skipping ${outputPath} - already processed`,

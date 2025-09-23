@@ -16,7 +16,7 @@ export async function generateAlassSubtitles(
   const ALASS_ARGS = env?.ALASS_ARGS || process.env.ALASS_ARGS;
 
   const exists = existsSync(outputPath);
-  if (exists) {
+  if (exists && (!env?.OVERWRITE || env.OVERWRITE.toLocaleLowerCase() !== 'true')) {
     return {
       success: true,
       message: `Skipping ${outputPath} - already processed`,

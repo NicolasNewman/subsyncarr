@@ -4,9 +4,10 @@ import { ScanConfig } from '../config';
 
 export async function findAllDirectories(
   config: ScanConfig,
-): Promise<{ directories: string[]; files: string[]; directoryMap: Record<string, string[]> }> {
+): Promise<{ directories: string[]; subs: string[]; media: string[]; directoryMap: Record<string, string[]> }> {
   const directories: Set<string> = new Set();
-  const files: string[] = [];
+  const subs: string[] = [];
+  const media: string[] = [];
 
   const directoryMap: Record<string, string[]> = {};
 
@@ -33,7 +34,12 @@ export async function findAllDirectories(
         directoryMap[directory] ??= [];
         directoryMap[directory].push(fullPath);
         directories.add(directory);
-        files.push(fullPath);
+        subs.push(fullPath);
+      } else if (
+        entry.isFile() &&
+        ['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv'].includes(extname(entry.name).toLowerCase())
+      ) {
+        media.push(fullPath);
       }
     }
   }
@@ -45,7 +51,8 @@ export async function findAllDirectories(
 
   return {
     directories: Array.from(directories),
-    files,
+    subs,
+    media,
     directoryMap,
   };
 }

@@ -9,6 +9,7 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import SyncLock from './syncLock';
 import { defaultIfEmpty, execPromise } from '../helpers';
+import { findAllMediaFiles } from './findAllMediaFiles';
 
 const app = express();
 app.use(bodyParser.json());
@@ -51,7 +52,11 @@ const syncLock = new SyncLock();
  *                   type: array
  *                   items:
  *                     type: string
- *                 files:
+ *                 subs:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 media:
  *                   type: array
  *                   items:
  *                     type: string
@@ -107,7 +112,7 @@ type ExecResult = {
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["/path/to/movie", "/path/to/subtitle.srt"]
+ *                 example: ["/path/to/show", "/path/to/show2/subtitle.srt"]
  *     parameters:
  *       - in: header
  *         name: AUDIO_TRACK_LANGUAGE
@@ -135,6 +140,14 @@ type ExecResult = {
  *         description: Additional arguments for alass. See [docs](https://github.com/kaegi/alass/blob/master/alass-cli/src/main.rs) for options.
  *         schema:
  *           type: string
+ *       - in: header
+ *         name: OVERWRITE
+ *         required: false
+ *         description: Whether to overwrite existing subtitles. (e.g., 'true' or 'false')
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *           example: true
  *     responses:
  *       200:
  *         description: Sync started successfully
@@ -168,6 +181,8 @@ type ExecResult = {
  *                           type: string
  *                         stdout:
  *                           type: string
+ *                         cmd:
+ *                          type: string
  *       400:
  *         description: Bad request
  *         content:
@@ -212,6 +227,7 @@ app.post('/sync', async (req, res) => {
       FFSUBSYNC_ARGS: defaultIfEmpty(req.headers.ffsubsync_args as string | undefined),
       AUTOSUBSYNC_ARGS: defaultIfEmpty(req.headers.autosubsync_args as string | undefined),
       ALASS_ARGS: defaultIfEmpty(req.headers.alass_args as string | undefined),
+      OVERWRITE: defaultIfEmpty(req.headers.overwrite as string | undefined),
     };
 
     if (!engineParam || !pathParam) {
@@ -308,7 +324,7 @@ app.get('/unlock', (req, res) => {
  * @swagger
  * /ffprobe:
  *   post:
- *     summary: Get ffprobe data for all .srt files in the specified paths
+ *     summary: Get ffprobe data for all media files in the specified paths
  *     requestBody:
  *       required: true
  *       content:
@@ -322,10 +338,10 @@ app.get('/unlock', (req, res) => {
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["/path/to/directory"]
+ *                 example: ["/path/to/show1", "/path/to/show2/ep01.mkv"]
  *     responses:
  *       200:
- *         description: A list of ffprobe data for each .srt file
+ *         description: A list of ffprobe data for each media file
  *         content:
  *           application/json:
  *             schema:
@@ -340,14 +356,14 @@ app.post('/ffprobe', async (req, res) => {
   const pathParam = req.body.path as string[];
 
   const scanConfig = getScanConfig(pathParam);
-  const srtFiles = await findAllSrtFiles(scanConfig);
+  const mediaFiles = await findAllMediaFiles(scanConfig);
 
   try {
     const result = (
       await Promise.all(
-        srtFiles.map(async (srtFile) =>
+        mediaFiles.map(async (mediaFile) =>
           execPromise(
-            `ffprobe -v error -show_entries format=duration:stream=index,codec_long_name,channels,duration,codec_type -of json "${srtFile}"`,
+            `ffprobe -v error -show_entries format=duration:stream=index,codec_long_name,channels,duration,codec_type -of json "${mediaFile}"`,
           ),
         ),
       )
@@ -362,5 +378,5 @@ app.post('/ffprobe', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Subsyncarr API listening on port ${port}`);
 });

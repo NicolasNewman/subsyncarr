@@ -1,8 +1,8 @@
 import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
-import { ScanConfig } from './config';
+import { ScanConfig } from '../config';
 
-export async function findAllSrtFiles(config: ScanConfig): Promise<string[]> {
+export async function findAllMediaFiles(config: ScanConfig): Promise<string[]> {
   const files: string[] = [];
 
   async function scan(directory: string): Promise<void> {
@@ -11,7 +11,7 @@ export async function findAllSrtFiles(config: ScanConfig): Promise<string[]> {
       return;
     }
 
-    if (directory.endsWith('.srt')) {
+    if (directory.match(/\.mkv$|\.mp4$|\.avi$|\.mov$|\.wmv$|\.flv$/)) {
       files.push(directory);
     } else {
       const entries = await readdir(directory, { withFileTypes: true });
@@ -23,11 +23,7 @@ export async function findAllSrtFiles(config: ScanConfig): Promise<string[]> {
           await scan(fullPath);
         } else if (
           entry.isFile() &&
-          extname(entry.name).toLowerCase() === '.srt' &&
-          !entry.name.includes('.ffsubsync.') &&
-          !entry.name.includes('.alass.') &&
-          !entry.name.includes('.autosubsync.') &&
-          !entry.name.includes('.alass-sub.')
+          ['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv'].includes(extname(entry.name).toLowerCase())
         ) {
           files.push(fullPath);
         }
