@@ -8,6 +8,7 @@ import { SubsyncarrEnv } from '../types/env';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import SyncLock from './syncLock';
+import { defaultIfEmpty, execPromise } from '../helpers';
 
 const app = express();
 app.use(bodyParser.json());
@@ -67,6 +68,20 @@ app.get('/paths', async (req, res) => {
   res.json({ directories });
 });
 
+type ExecResult = {
+  success: Record<string, string[]>;
+  failure: Record<
+    string,
+    {
+      engine: string;
+      message: string;
+      code: number | undefined;
+      stderr: string | undefined;
+      stdout: string | undefined;
+      cmd: string | undefined;
+    }[]
+  >;
+};
 /**
  * @swagger
  * /sync:
@@ -193,10 +208,10 @@ app.post('/sync', async (req, res) => {
     const pathParam = req.body.path as string[];
 
     const env: SubsyncarrEnv = {
-      AUDIO_TRACK_LANGUAGE: req.headers.AUDIO_TRACK_LANGUAGE as string | undefined,
-      FFSUBSYNC_ARGS: req.headers.FFSUBSYNC_ARGS as string | undefined,
-      AUTOSUBSYNC_ARGS: req.headers.AUTOSUBSYNC_ARGS as string | undefined,
-      ALASS_ARGS: req.headers.ALASS_ARGS as string | undefined,
+      AUDIO_TRACK_LANGUAGE: defaultIfEmpty(req.headers.audio_track_language as string | undefined),
+      FFSUBSYNC_ARGS: defaultIfEmpty(req.headers.ffsubsync_args as string | undefined),
+      AUTOSUBSYNC_ARGS: defaultIfEmpty(req.headers.autosubsync_args as string | undefined),
+      ALASS_ARGS: defaultIfEmpty(req.headers.alass_args as string | undefined),
     };
 
     if (!engineParam || !pathParam) {
@@ -216,19 +231,7 @@ app.post('/sync', async (req, res) => {
     const scanConfig = getScanConfig(pathParam);
     const srtFiles = await findAllSrtFiles(scanConfig);
 
-    const execResults: {
-      success: Record<string, string[]>;
-      failure: Record<
-        string,
-        {
-          engine: string;
-          message: string;
-          code: number | undefined;
-          stderr: string | undefined;
-          stdout: string | undefined;
-        }[]
-      >;
-    } = {
+    const execResults: ExecResult = {
       success: {},
       failure: {},
     };
@@ -247,22 +250,17 @@ app.post('/sync', async (req, res) => {
               code: error?.code,
               stderr: error?.stderr,
               stdout: error?.stdout,
+              cmd: error?.cmd,
             }));
+          if (prev.success[file].length === 0) {
+            delete prev.success[file];
+          }
+          if (prev.failure[file].length === 0) {
+            delete prev.failure[file];
+          }
           return prev;
         },
-        { success: {}, failure: {} } as {
-          success: Record<string, string[]>;
-          failure: Record<
-            string,
-            {
-              engine: string;
-              message: string;
-              code: number | undefined;
-              stderr: string | undefined;
-              stdout: string | undefined;
-            }[]
-          >;
-        },
+        { success: {}, failure: {} } as ExecResult,
       );
 
       execResults.success = { ...execResults.success, ...result.success };
@@ -273,6 +271,7 @@ app.post('/sync', async (req, res) => {
       message: `Sync triggered for path: ${pathParam} with engines: ${engines.join(', ')}`,
       success: execResults.success,
       failure: execResults.failure,
+      env,
     });
   } catch (error) {
     console.error('Error occurred while processing sync request:', error);
@@ -303,6 +302,63 @@ app.post('/sync', async (req, res) => {
 app.get('/unlock', (req, res) => {
   syncLock.unlock();
   res.json({ message: 'Sync lock released' });
+});
+
+/**
+ * @swagger
+ * /ffprobe:
+ *   post:
+ *     summary: Get ffprobe data for all .srt files in the specified paths
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - path
+ *             properties:
+ *               path:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["/path/to/directory"]
+ *     responses:
+ *       200:
+ *         description: A list of ffprobe data for each .srt file
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 result:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ */
+app.post('/ffprobe', async (req, res) => {
+  const pathParam = req.body.path as string[];
+
+  const scanConfig = getScanConfig(pathParam);
+  const srtFiles = await findAllSrtFiles(scanConfig);
+
+  try {
+    const result = (
+      await Promise.all(
+        srtFiles.map(async (srtFile) =>
+          execPromise(
+            `ffprobe -v error -show_entries format=duration:stream=index,codec_long_name,channels,duration,codec_type -of json "${srtFile}"`,
+          ),
+        ),
+      )
+    ).map(({ stdout }) => JSON.parse(stdout));
+    res.json({
+      result,
+    });
+  } catch (error) {
+    console.error('Error occurred while processing ffprobe request:', error);
+    return res.status(500).json({ ...(error as Error) });
+  }
 });
 
 app.listen(port, () => {

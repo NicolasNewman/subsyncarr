@@ -64,6 +64,9 @@ RUN pipx install ffsubsync \
 RUN pipx inject ffsubsync silero-vad
 
 # Install PM2 globally
+RUN mkdir /home/node/.npm-global
+ENV PATH=/home/node/.npm-global/bin:$PATH
+ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
 RUN npm install -g pm2
 
 # Create startup script with proper permissions
@@ -78,7 +81,7 @@ pm2 start dist/api/api.js --name "subsyncarr-api" --log /app/logs/api.log\n\
 \n\
 # Conditionally run the initial instance of the app\n\
 if [ "${RUN_ON_STARTUP:-true}" = "true" ]; then\n\
-    node dist/index.js\n\
+node dist/index.js\n\
 fi\n\
 \n\
 mkdir -p /app/logs/\n\

@@ -16,14 +16,26 @@ export interface ProcessingResult {
 
 export const isExecException = (error: unknown): error is ExecException => {
   const tmp = error as ExecException;
-  return tmp instanceof Error && tmp.stderr !== undefined;
+  return tmp.stderr !== undefined;
+};
+
+export const defaultIfEmpty = (
+  value: string | undefined,
+  defaultValue: string | undefined = undefined,
+): string | undefined => {
+  return value && value.trim() !== '' ? value : defaultValue;
 };
 
 export async function execPromise(command: string): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        reject(error);
+        reject({
+          ...error,
+          stderr,
+          stdout,
+          cmd: command,
+        });
       } else {
         resolve({ stdout, stderr });
       }
